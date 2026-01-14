@@ -11,14 +11,19 @@
       box-sizing: border-box;
     }
 
-    html {
-      scroll-snap-type: y mandatory;
-      scroll-behavior: smooth;
+    html, body {
+      background: #000;
+      height: 100%;
+      overflow: hidden;
     }
 
-    body {
-      background: #000;
-      overflow-x: hidden;
+    .scroll-container {
+      height: 100vh;
+      height: 100dvh;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
     }
 
     .section {
@@ -41,7 +46,7 @@
   </style>
 </head>
 <body>
-
+<div class="scroll-container">
     <div class="section">
       <img src="https://raw.githubusercontent.com/johockin/TSGPSP/main/01_Cover.png" alt="Pu Songling: Strange Tales - Cover" loading="eager">
     </div>
@@ -69,6 +74,6 @@
     <div class="section">
       <img src="https://raw.githubusercontent.com/johockin/TSGPSP/main/07_Crows_Ack.png" alt="Crow's Theatre Acknowledgements" loading="lazy">
     </div>
-
+</div>
 </body>
 </html>
