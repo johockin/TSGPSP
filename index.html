@@ -94,64 +94,63 @@
 
 <script>
 (function() {
-  const container = document.querySelector('.scroll-container');
   const sections = document.querySelectorAll('.section');
-
-  // Calculate section boundary positions
-  let boundaries = [];
+  const PAUSE_DURATION = 300;
   let pausedAt = -1;
   let pauseTimeout = null;
-  const PAUSE_DURATION = 250; // ms to pause at boundary
-  const BOUNDARY_ZONE = 10; // px threshold for boundary detection
 
-  function updateBoundaries() {
-    boundaries = [];
-    const containerTop = container.getBoundingClientRect().top;
-    sections.forEach((section, i) => {
-      if (i > 0) { // Skip first section (top of page)
-        const rect = section.getBoundingClientRect();
-        const offset = rect.top - containerTop + container.scrollTop;
-        boundaries.push({ position: offset, index: i });
+  // Find the actual scrolling element (might be Duda's wrapper)
+  function getScrollParent(el) {
+    let parent = el.parentElement;
+    while (parent) {
+      const style = getComputedStyle(parent);
+      if (/(auto|scroll)/.test(style.overflow + style.overflowY)) {
+        return parent;
       }
-    });
+      parent = parent.parentElement;
+    }
+    return document.documentElement;
   }
 
-  // Initial calculation + recalc on resize
-  updateBoundaries();
-  window.addEventListener('resize', updateBoundaries);
+  const scrollEl = getScrollParent(sections[0]);
 
-  // Check if we're crossing a boundary
-  container.addEventListener('scroll', () => {
-    const scrollPos = container.scrollTop;
+  // Use Intersection Observer to detect when section tops reach viewport top
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const index = Array.from(sections).indexOf(entry.target);
 
-    for (const boundary of boundaries) {
-      const dist = Math.abs(scrollPos - boundary.position);
+      // Section top is entering/at the viewport top (scrolling down)
+      // or section is becoming visible (scrolling up)
+      if (entry.isIntersecting && index > 0 && pausedAt !== index) {
+        const rect = entry.boundingClientRect;
 
-      // If we're within the boundary zone and haven't paused here yet
-      if (dist < BOUNDARY_ZONE && pausedAt !== boundary.index) {
-        pausedAt = boundary.index;
+        // Check if the top of this section is near the top of viewport
+        if (rect.top >= -20 && rect.top <= 20) {
+          pausedAt = index;
 
-        // Snap to exact boundary position
-        container.scrollTop = boundary.position;
+          // Scroll to align exactly
+          entry.target.scrollIntoView({ behavior: 'auto', block: 'start' });
 
-        // Briefly disable scrolling
-        container.style.overflowY = 'hidden';
+          // Disable pointer events to pause scrolling
+          document.body.style.pointerEvents = 'none';
+          document.body.style.touchAction = 'none';
 
-        clearTimeout(pauseTimeout);
-        pauseTimeout = setTimeout(() => {
-          container.style.overflowY = 'scroll';
-        }, PAUSE_DURATION);
-
-        break;
+          clearTimeout(pauseTimeout);
+          pauseTimeout = setTimeout(() => {
+            document.body.style.pointerEvents = '';
+            document.body.style.touchAction = '';
+            // Reset after scrolling away
+            setTimeout(() => { pausedAt = -1; }, 500);
+          }, PAUSE_DURATION);
+        }
       }
-    }
+    });
+  }, {
+    threshold: [0, 0.01, 0.1],
+    rootMargin: '-1px 0px -90% 0px' // Trigger when top of section nears viewport top
+  });
 
-    // Reset pausedAt if we've scrolled away from all boundaries
-    const nearAny = boundaries.some(b => Math.abs(scrollPos - b.position) < BOUNDARY_ZONE * 3);
-    if (!nearAny) {
-      pausedAt = -1;
-    }
-  }, { passive: true });
+  sections.forEach(section => observer.observe(section));
 })();
 </script>
 </body>
