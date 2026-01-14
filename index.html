@@ -94,62 +94,64 @@
 
 <script>
 (function() {
+  const container = document.querySelector('.scroll-container');
   const sections = document.querySelectorAll('.section');
-  let current = 0;
-  let startY = 0;
-  let isAnimating = false;
 
-  // Go to section by index
-  function goTo(index) {
-    if (index < 0 || index >= sections.length || isAnimating) return;
-    isAnimating = true;
-    current = index;
-    sections[current].scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(() => { isAnimating = false; }, 600);
+  // Calculate section boundary positions
+  let boundaries = [];
+  let pausedAt = -1;
+  let pauseTimeout = null;
+  const PAUSE_DURATION = 250; // ms to pause at boundary
+  const BOUNDARY_ZONE = 10; // px threshold for boundary detection
+
+  function updateBoundaries() {
+    boundaries = [];
+    const containerTop = container.getBoundingClientRect().top;
+    sections.forEach((section, i) => {
+      if (i > 0) { // Skip first section (top of page)
+        const rect = section.getBoundingClientRect();
+        const offset = rect.top - containerTop + container.scrollTop;
+        boundaries.push({ position: offset, index: i });
+      }
+    });
   }
 
-  // Touch events - capture swipes
-  document.addEventListener('touchstart', (e) => {
-    startY = e.touches[0].clientY;
-  }, { passive: true });
+  // Initial calculation + recalc on resize
+  updateBoundaries();
+  window.addEventListener('resize', updateBoundaries);
 
-  document.addEventListener('touchend', (e) => {
-    const endY = e.changedTouches[0].clientY;
-    const diff = startY - endY;
-    const threshold = 50; // Minimum swipe distance
+  // Check if we're crossing a boundary
+  container.addEventListener('scroll', () => {
+    const scrollPos = container.scrollTop;
 
-    if (Math.abs(diff) > threshold) {
-      if (diff > 0) {
-        goTo(current + 1); // Swipe up = next
-      } else {
-        goTo(current - 1); // Swipe down = previous
+    for (const boundary of boundaries) {
+      const dist = Math.abs(scrollPos - boundary.position);
+
+      // If we're within the boundary zone and haven't paused here yet
+      if (dist < BOUNDARY_ZONE && pausedAt !== boundary.index) {
+        pausedAt = boundary.index;
+
+        // Snap to exact boundary position
+        container.scrollTop = boundary.position;
+
+        // Briefly disable scrolling
+        container.style.overflowY = 'hidden';
+
+        clearTimeout(pauseTimeout);
+        pauseTimeout = setTimeout(() => {
+          container.style.overflowY = 'scroll';
+        }, PAUSE_DURATION);
+
+        break;
       }
     }
+
+    // Reset pausedAt if we've scrolled away from all boundaries
+    const nearAny = boundaries.some(b => Math.abs(scrollPos - b.position) < BOUNDARY_ZONE * 3);
+    if (!nearAny) {
+      pausedAt = -1;
+    }
   }, { passive: true });
-
-  // Mouse wheel for desktop
-  document.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    if (e.deltaY > 0) {
-      goTo(current + 1);
-    } else {
-      goTo(current - 1);
-    }
-  }, { passive: false });
-
-  // Keyboard navigation
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' || e.key === ' ') {
-      e.preventDefault();
-      goTo(current + 1);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      goTo(current - 1);
-    }
-  });
-
-  // Start at first section
-  goTo(0);
 })();
 </script>
 </body>
