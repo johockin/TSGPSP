@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Pu Songling: Strange Tales – Digital Program</title>
   <style>
-    * {
+    /* Aggressive reset to counter Duda's wrapper styles */
+    *, *::before, *::after {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
@@ -15,20 +16,35 @@
       background: #000;
       height: 100%;
       overflow: hidden;
+      /* Negative margins to counter any Duda container padding */
+      margin-top: -1px;
+      padding-top: 1px;
+    }
+
+    /* Safety net: fixed black bar covering any gap at top */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -100px;
+      left: 0;
+      right: 0;
+      height: 150px;
+      background: #000;
+      z-index: 1000;
+      pointer-events: none;
     }
 
     .scroll-container {
       height: 100vh;
       height: 100dvh;
       overflow-y: scroll;
-      scroll-snap-type: y mandatory;
-      scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
+      background: #000;
+      position: relative;
+      z-index: 1;
     }
 
     .section {
-      scroll-snap-align: start;
-      scroll-snap-stop: always;
       width: 100%;
     }
 
@@ -75,5 +91,60 @@
       <img src="https://raw.githubusercontent.com/johockin/TSGPSP/main/07_Crows_Ack.png" alt="Crow's Theatre Acknowledgements" loading="lazy">
     </div>
 </div>
+
+<script>
+(function() {
+  const container = document.querySelector('.scroll-container');
+  const sections = document.querySelectorAll('.section');
+  let currentSection = 0;
+  let isSnapping = false;
+  let scrollTimeout = null;
+
+  // Track which section is most visible
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+        currentSection = Array.from(sections).indexOf(entry.target);
+      }
+    });
+  }, {
+    root: container,
+    threshold: [0.5, 0.75]
+  });
+
+  sections.forEach(section => observer.observe(section));
+
+  // Debounced snap on scroll end
+  container.addEventListener('scroll', () => {
+    if (isSnapping) return;
+
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      snapToNearest();
+    }, 150); // Wait 150ms after scroll stops
+  }, { passive: true });
+
+  function snapToNearest() {
+    isSnapping = true;
+    const containerRect = container.getBoundingClientRect();
+    let closest = 0;
+    let closestDist = Infinity;
+
+    sections.forEach((section, i) => {
+      const rect = section.getBoundingClientRect();
+      const dist = Math.abs(rect.top - containerRect.top);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = i;
+      }
+    });
+
+    sections[closest].scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Reset snapping flag after animation
+    setTimeout(() => { isSnapping = false; }, 500);
+  }
+})();
+</script>
 </body>
 </html>
