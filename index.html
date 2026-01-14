@@ -7,8 +7,15 @@
   <style>
     /* Nuclear option for Duda wrapper elements */
     header, footer, .site-header, .site-footer,
-    [class*="header"], [class*="Header"] {
+    [class*="header"], [class*="Header"],
+    [id*="header"], [id*="Header"] {
       display: none !important;
+    }
+
+    /* Force our content to top */
+    body > *:first-child {
+      margin-top: 0 !important;
+      padding-top: 0 !important;
     }
 
     /* Aggressive reset to counter Duda's wrapper styles */
