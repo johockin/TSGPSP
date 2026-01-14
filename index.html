@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Pu Songling: Strange Tales – Digital Program</title>
   <style>
+    /* Nuclear option for Duda wrapper elements */
+    header, footer, .site-header, .site-footer,
+    [class*="header"], [class*="Header"] {
+      display: none !important;
+    }
+
     /* Aggressive reset to counter Duda's wrapper styles */
     *, *::before, *::after {
       margin: 0;
@@ -95,43 +101,53 @@
 <script>
 (function() {
   const sections = document.querySelectorAll('.section');
-  const FRICTION_DURATION = 120; // Short enough to feel like friction, not a stop
+  const FRICTION_MS = 150;
+  const TRIGGER_ZONE = 30; // px from top of viewport to trigger
+
   let lastTriggered = -1;
-  let frictionTimeout = null;
+  let isFrozen = false;
 
-  // Observe each section - trigger when its top edge crosses viewport top
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      const index = Array.from(sections).indexOf(entry.target);
+  function applyFriction() {
+    if (isFrozen) return;
+    isFrozen = true;
 
-      // Only trigger for sections after the first, and only once per section
-      if (index > 0 && entry.isIntersecting && lastTriggered !== index) {
-        lastTriggered = index;
+    // Freeze scrolling briefly
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
 
-        // Brief friction: disable touch input momentarily
-        document.body.style.pointerEvents = 'none';
-        document.body.style.touchAction = 'none';
+    setTimeout(() => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      isFrozen = false;
+    }, FRICTION_MS);
+  }
 
-        clearTimeout(frictionTimeout);
-        frictionTimeout = setTimeout(() => {
-          document.body.style.pointerEvents = '';
-          document.body.style.touchAction = '';
-        }, FRICTION_DURATION);
+  function checkBoundaries() {
+    if (isFrozen) {
+      requestAnimationFrame(checkBoundaries);
+      return;
+    }
 
-        // Allow re-triggering after moving away
-        setTimeout(() => {
-          if (lastTriggered === index) lastTriggered = -1;
-        }, 600);
+    for (let i = 1; i < sections.length; i++) {
+      const rect = sections[i].getBoundingClientRect();
+
+      // Check if section top is near viewport top
+      if (rect.top >= -TRIGGER_ZONE && rect.top <= TRIGGER_ZONE) {
+        if (lastTriggered !== i) {
+          lastTriggered = i;
+          applyFriction();
+          // Reset after scrolling away
+          setTimeout(() => { lastTriggered = -1; }, 800);
+        }
+        break;
       }
-    });
-  }, {
-    // rootMargin: top offset makes it trigger when section top reaches viewport top
-    // "-1px 0px -99% 0px" means: 1px from top, and only the top 1% of viewport counts
-    rootMargin: '0px 0px -95% 0px',
-    threshold: 0
-  });
+    }
 
-  sections.forEach(section => observer.observe(section));
+    requestAnimationFrame(checkBoundaries);
+  }
+
+  // Start polling
+  requestAnimationFrame(checkBoundaries);
 })();
 </script>
 </body>
