@@ -108,53 +108,70 @@
 <script>
 (function() {
   const sections = document.querySelectorAll('.section');
-  const FRICTION_MS = 150;
-  const TRIGGER_ZONE = 30; // px from top of viewport to trigger
+  const FRICTION_MS = 200;
+  const TRIGGER_ZONE = 50;
 
   let lastTriggered = -1;
   let isFrozen = false;
+  let blocker = null;
+
+  // Create a full-screen blocker element
+  function createBlocker() {
+    blocker = document.createElement('div');
+    blocker.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 99999;
+      background: transparent;
+      touch-action: none;
+    `;
+  }
+  createBlocker();
 
   function applyFriction() {
     if (isFrozen) return;
     isFrozen = true;
 
-    // Freeze scrolling briefly
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
+    // Insert blocker to capture all touch events
+    document.body.appendChild(blocker);
 
     setTimeout(() => {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
+      if (blocker.parentNode) {
+        blocker.parentNode.removeChild(blocker);
+      }
       isFrozen = false;
     }, FRICTION_MS);
   }
 
-  function checkBoundaries() {
-    if (isFrozen) {
-      requestAnimationFrame(checkBoundaries);
-      return;
-    }
+  function checkBoundary() {
+    if (isFrozen) return;
 
     for (let i = 1; i < sections.length; i++) {
       const rect = sections[i].getBoundingClientRect();
 
-      // Check if section top is near viewport top
       if (rect.top >= -TRIGGER_ZONE && rect.top <= TRIGGER_ZONE) {
         if (lastTriggered !== i) {
           lastTriggered = i;
           applyFriction();
-          // Reset after scrolling away
-          setTimeout(() => { lastTriggered = -1; }, 800);
+          setTimeout(() => { lastTriggered = -1; }, 600);
         }
-        break;
+        return;
       }
     }
-
-    requestAnimationFrame(checkBoundaries);
   }
 
-  // Start polling
-  requestAnimationFrame(checkBoundaries);
+  // Check on every touchmove
+  document.addEventListener('touchmove', checkBoundary, { passive: true });
+
+  // Also check periodically during momentum scroll
+  document.addEventListener('touchend', () => {
+    let checks = 0;
+    const interval = setInterval(() => {
+      checkBoundary();
+      checks++;
+      if (checks > 30) clearInterval(interval); // Stop after ~1.5s
+    }, 50);
+  }, { passive: true });
 })();
 </script>
 </body>
